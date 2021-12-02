@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SIWE</string>
+    <string name="less_than_2_in_db">Less than 2 participants in database</string>
+</resources>
