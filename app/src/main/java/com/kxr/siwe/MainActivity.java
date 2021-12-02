@@ -2,6 +2,7 @@ package com.kxr.siwe;
 
 import static android.content.ContentValues.TAG;
 
+import androidx.annotation.IntegerRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -24,6 +25,7 @@ import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
@@ -36,6 +38,7 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -46,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText edit_to;
     private EditText edit_from;
     private ListView participants_list;
+    private ListView selected_participants;
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -64,6 +68,10 @@ public class MainActivity extends AppCompatActivity {
         edit_to = findViewById(R.id.edit_to);
         edit_from = findViewById(R.id.edit_from);
         participants_list = findViewById(R.id.list_participants_list);
+        selected_participants = findViewById(R.id.list_participants_selected);
+
+        edit_to.setEnabled(false);
+        edit_from.setEnabled(false);
 
         DAOParticipants dao = new DAOParticipants();
         DatePickerDialog datePickerDialog = new DatePickerDialog(this);
@@ -82,29 +90,16 @@ public class MainActivity extends AppCompatActivity {
         DatabaseReference dbReference = dao.databaseReference.getRef().child("Participants");
         DatabaseReference dbReferenceChild = dao.databaseReference.getRef().child("");
 
-//******        // variables to be deleted
-        final String[] global_name = new String[1000];
-        final String[] global_from = new String[1000];
-        final String[] global_to = new String[1000];
-        final String[] global_date = new String[1000];
-
         // fetches the data into the list called mArrayList
         dbReferenceChild.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 // clears the list everytime to render new changes
-                participants_info_list.clear();
+                participants_info_list_String.clear();
                 int i = 0;
                 for(DataSnapshot dsnap : snapshot.getChildren()) {
-//*******
-                    /*
-                    global_name[i] = dsnap.child("name").getValue().toString();
-                    global_date[i] = dsnap.child("date").getValue().toString();
-                    global_from[i] = dsnap.child("time_from").getValue().toString();
-                    global_to[i] = dsnap.child("time_to").getValue().toString();
-                    */
 
-                    Participants participants = new Participants(dsnap.child("name").getValue().
+                    Participants participants = new Participants(dsnap.getKey(), dsnap.child("name").getValue().
                             toString(),
                             dsnap.child("date").getValue().toString(),
                             dsnap.child("time_from").getValue().toString(),
@@ -112,13 +107,14 @@ public class MainActivity extends AppCompatActivity {
 
                     participants_info_list.add(participants);
                     participants_info_list_String.add("Name: " + participants.getName() +
-                            " Date: " + participants.getDate() + " From: " + participants.getTime_from()
-                    + " To: " + participants.getTime_to());
+                            "\t\tDate: " + participants.getDate() + "\t\tFrom: " + participants.getTime_from()
+                    + "\t\tTo: " + participants.getTime_to());
                     mArrayAdapter.notifyDataSetChanged();
                     ++i;
                 }
                 // less than 2 participants selected
-                if(i < 2) {
+                if(participants_info_list.size() < 2) {
+                    int m_size = participants_info_list.size();
                     Toast.makeText(MainActivity.this, getString(R.string.less_than_2_in_db),
                             Toast.LENGTH_SHORT).show();
                     btn_schedule.setEnabled(false);
@@ -136,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
         //******************************************************************************************
 
         //******************************************************************************************
-        //              FETCH THE NAME ON THE LISTVIEW ON SELECTION
+        //              SELECT PARTICIPANT FROM LIST
         //******************************************************************************************
         final int[] count_selected = {0};
         ArrayList<Integer> selected_indices = new ArrayList<Integer>(1000);
@@ -145,20 +141,43 @@ public class MainActivity extends AppCompatActivity {
         participants_list.setAdapter(mArrayAdapter);
         participants_list.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
 
-        // on click listener
+        // list for selected participants
+        final ArrayList<String> selected_participants_string = new ArrayList<>();
+        final ArrayList<Participants> selected_participants_list = new ArrayList<>();
+        final ArrayAdapter<String> mArrayAdapterSelected = new ArrayAdapter<String >
+                (MainActivity.this, android.R.layout.simple_list_item_1, selected_participants_string);
+
+        // on click listener to save the list of selected participants
         participants_list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                String name = adapterView.getItemAtPosition(i).toString();
-                Toast.makeText(MainActivity.this, name, Toast.LENGTH_SHORT).show();
+                String record = adapterView.getItemAtPosition(i).toString();
+                Toast.makeText(MainActivity.this, record, Toast.LENGTH_SHORT).show();
 
-                selected_indices.add(i);
-                Log.d(TAG, global_name[i]);
-                ++count_selected[0];
+                // preventing duplicate entries
+                if(selected_participants_string.contains(String.valueOf(participants_info_list.get(i).getName())) == false) {
+                    selected_participants_list.add(participants_info_list.get(i));
+                    selected_participants_string.add(String.valueOf(participants_info_list.get(i).getName()));
+                }
+                selected_participants.setAdapter(mArrayAdapterSelected);
             }
         });
+
         //******************************************************************************************
-        //              FETCH THE NAME ENDS HERE
+        //              CLEAR LIST ON CLICKING ELEMENT FROM SELECTED LIST
+        //******************************************************************************************
+
+        selected_participants.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                selected_participants_list.clear();
+                selected_participants_string.clear();
+                mArrayAdapterSelected.notifyDataSetChanged();
+            }
+        });
+
+        //******************************************************************************************
+        //              SELECTED PARTICIPANTS LIST OPERATION ENDS HERE
         //******************************************************************************************
 
         //******************************************************************************************
@@ -314,7 +333,7 @@ public class MainActivity extends AppCompatActivity {
         //******************************************************************************************
         btn_schedule.setOnClickListener(v -> {
             // check if atleast 2 participants selected
-            if(count_selected[0] < 2) {
+            if(selected_participants_list.size() < 2) {
                 Toast.makeText(this, "Less than 2 participants in slot. Retry",
                         Toast.LENGTH_SHORT).show();
                 return;
@@ -325,16 +344,111 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // if slot already scheduled
+            // if slot already scheduled || overlapping slot
+            //**************************************************************************************
 
+            // for each time slot check if the selected slot is overlapping anywhere
+            ArrayList<String> selectedKeys = new ArrayList<>();
+            // storing keys of selected participants
+            for(int i = 0; i < selected_participants_list.size(); ++i) {
+                selectedKeys.add(selected_participants_list.get(i).getMyKey());
+            }
 
-            // creating strings for date and time
+            //**************************************************************************************
+            // for each participant check if slot matches
+            int flag = 0;
+            for(int i = 0; i < participants_info_list.size(); ++i) {
+                // see if the elements from the selected list are not being checked of overlapping
+                // because they are being rescheduled
+                flag = 0;
+                for(int j = 0; j < selectedKeys.size(); ++j) {
+                    if(selectedKeys.get(j) == participants_info_list.get(i).getMyKey()) {
+                        flag = 1;
+                        break;
+                    }
+                }
+
+                // if key matches, continue with the next iteration
+                if(flag == 1) { continue; }
+
+                // hours and minutes && from and to of each participant
+                //----------------------------------------------------------------------------------
+                int hour_from, hour_to, mins_from, mins_to;
+                //----------------------------------------------------------------------------------
+                String[] time_from = participants_info_list.get(i).getTime_from().
+                        split(String.valueOf('-'));
+                String[] time_to = participants_info_list.get(i).getTime_to().
+                        split(String.valueOf('-'));
+                //----------------------------------------------------------------------------------
+                hour_from = Integer.valueOf(time_from[0]);
+                mins_from = Integer.valueOf(time_from[1]);
+                hour_to = Integer.valueOf(time_to[0]);
+                mins_to = Integer.valueOf(time_to[1]);
+                //----------------------------------------------------------------------------------
+
+                Log.d(TAG, "entry: " + String.valueOf(hour_from) + " " + String.valueOf(mins_from) + " " + String.valueOf(hour_to) + " " + String.valueOf(mins_to));
+
+                // logic for preoccupied time slots
+                if(mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
+                    mHourMinute_to[0] <= hour_to && mHourMinute_to[1] <= hour_to) {
+
+                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                else if(mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
+                        mHourMinute_to[0] >= hour_to && mHourMinute_to[1] >= hour_to) {
+
+                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                else if(mHourMinute_from[0] >= hour_from && mHourMinute_from[1] >= mins_from &&
+                        mHourMinute_from[0] <= hour_to && mHourMinute_from[1] <= mins_to) {
+
+                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            // maybe also return where the overlapping slot resides
+            //**************************************************************************************
+
+            //              end of finding overlap
+
+            //**************************************************************************************
+            // creating strings for new date and time
             String date = String.valueOf(mDate[0]) + '-' + String.valueOf(mDate[1]) + '-' +
                     String.valueOf(mDate[2]);
             String time_from = String.valueOf(mHourMinute_from[0]) + '-'
                     + String.valueOf(mHourMinute_from[1]);
             String time_to = String.valueOf(mHourMinute_to[0]) + '-'
                     + String.valueOf(mHourMinute_to[1]);
+
+            HashMap<String, Object> hashMap = new HashMap<>();
+
+            for(int i = 0; i < selected_participants_list.size(); ++i) {
+                String key = selected_participants_list.get(i).getMyKey();
+
+                hashMap.put("time_from", String.valueOf(mHourMinute_from[0])
+                        + "-" + String.valueOf(mHourMinute_from[1]));
+                hashMap.put("time_to", String.valueOf(mHourMinute_to[0])
+                        + "-" + String.valueOf(mHourMinute_to[1]));
+
+                dao.update(selected_participants_list.get(i).getMyKey(), hashMap).addOnSuccessListener(success -> {
+                    Toast.makeText(this, "Participant Updated", Toast.LENGTH_SHORT).show();
+                }).addOnFailureListener(error -> {
+                    Toast.makeText(this, "" + error.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+            /*
+            hashMap.put("name", edit_name.getText().toString());
+            hashMap.put("position", picker_date.getText().toString());
+
+            dao.update("-MpS495J6xIXCFDFpYmD", hashMap).addOnSuccessListener(success -> {
+                Toast.makeText(this, "Participant Updated", Toast.LENGTH_SHORT).show();
+            }).addOnFailureListener(error -> {
+                Toast.makeText(this, "" + error.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+             */
 
             // send to database
             /*

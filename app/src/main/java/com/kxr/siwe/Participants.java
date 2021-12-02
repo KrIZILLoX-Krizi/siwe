@@ -1,13 +1,14 @@
 package com.kxr.siwe;
 
 public class Participants {
-    private String name, date, time_from, time_to;
+    private String myKey, name, date, time_from, time_to;
 
-    public Participants (String name, String date, String time_from, String time_to) {
+    public Participants (String key, String name, String date, String time_from, String time_to) {
         this.time_from = time_from;
         this.time_to = time_to;
         this.date = date;
         this.name = name;
+        this.myKey = key;
     }
 
     public String getName() {
@@ -26,9 +27,11 @@ public class Participants {
         return time_to;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public String getMyKey() {
+        return myKey;
     }
+
+    public void setName(String name) { this.name = name; }
 
     public void setDate(String date) {
         this.date = date;
@@ -41,4 +44,6 @@ public class Participants {
     public void setTime_to(String time_to) {
         this.time_to = time_to;
     }
+
+    public void setMyKey(String key) { this.myKey = key; }
 }
