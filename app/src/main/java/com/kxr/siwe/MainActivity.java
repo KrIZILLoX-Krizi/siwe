@@ -58,10 +58,17 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //------------------------------------------------------------------------------------------
+        // stores the current date & time from the pickers
+        //------------------------------------------------------------------------------------------
         final int[] mHourMinute_from = new int[2];
         final int[] mHourMinute_to = new int[2];
         final int[] mDate = new int[3];
+        //------------------------------------------------------------------------------------------
 
+        //------------------------------------------------------------------------------------------
+        // GUI components as objects
+        //------------------------------------------------------------------------------------------
         select_date = findViewById(R.id.btn_select_date);
         btn_schedule = findViewById(R.id.btn_schedule);
         select_to = findViewById(R.id.btn_to);
@@ -70,46 +77,57 @@ public class MainActivity extends AppCompatActivity {
         edit_from = findViewById(R.id.edit_from);
         participants_list = findViewById(R.id.list_participants_list);
         selected_participants = findViewById(R.id.list_participants_selected);
+        //------------------------------------------------------------------------------------------
 
+        // disabling edit on edit texts for the time display on selection
         edit_to.setEnabled(false);
         edit_from.setEnabled(false);
 
+        //------------------------------------------------------------------------------------------
+        // database setups
+        //------------------------------------------------------------------------------------------
         DAOParticipants dao = new DAOParticipants();
-        DatePickerDialog datePickerDialog = new DatePickerDialog(this);
+        DatabaseReference dbReference = dao.databaseReference.getRef().child("Participants");
+        DatabaseReference dbReferenceChild = dao.databaseReference.getRef().child("");
+        //------------------------------------------------------------------------------------------
 
         //******************************************************************************************
-        //              FETCHING NAMES DATA ON STARTUP
+        //              FETCHING DATA ON STARTUP && POPULATING THE LIST VIEW
         //******************************************************************************************
 
         // participants info list stores participants details in Participants class format
+        // storing the same as a list of string as well
+        // && an adapter for the same
+        //------------------------------------------------------------------------------------------
         final ArrayList<Participants> participants_info_list = new ArrayList<>();
         final ArrayList<String> participants_info_list_String = new ArrayList<>();
         final ArrayAdapter<String> mArrayAdapter = new ArrayAdapter<String >
-                (MainActivity.this, android.R.layout.simple_list_item_1, participants_info_list_String);
-
-        // database setup
-        DatabaseReference dbReference = dao.databaseReference.getRef().child("Participants");
-        DatabaseReference dbReferenceChild = dao.databaseReference.getRef().child("");
+                (MainActivity.this, android.R.layout.simple_list_item_1,
+                        participants_info_list_String);
+        //------------------------------------------------------------------------------------------
 
         // fetches the data into the list called mArrayList
+        //------------------------------------------------------------------------------------------
         dbReferenceChild.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 // clears the list everytime to render new changes
+                //----------------------------------------------------------------------------------
                 participants_info_list_String.clear();
                 int i = 0;
                 for(DataSnapshot dsnap : snapshot.getChildren()) {
 
-                    Participants participants = new Participants(dsnap.getKey(), dsnap.child("name").getValue().
-                            toString(),
+                    Participants participants = new Participants(dsnap.getKey(),
+                            dsnap.child("name").getValue().toString(),
+                            dsnap.child("email").getValue().toString(),
                             dsnap.child("date").getValue().toString(),
                             dsnap.child("time_from").getValue().toString(),
                             dsnap.child("time_to").getValue().toString());
 
                     participants_info_list.add(participants);
                     participants_info_list_String.add("Name: " + participants.getName() +
-                            "\t\tDate: " + participants.getDate() + "\t\tFrom: " + participants.getTime_from()
-                    + "\t\tTo: " + participants.getTime_to());
+                            "\t\tDate: " + participants.getDate() + "\t\tFrom: " + participants.
+                            getTime_from() + "\t\tTo: " + participants.getTime_to());
                     mArrayAdapter.notifyDataSetChanged();
                     ++i;
                 }
@@ -123,32 +141,40 @@ public class MainActivity extends AppCompatActivity {
                 else {
                     btn_schedule.setEnabled(true);
                 }
+                //----------------------------------------------------------------------------------
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
+
+        // list on UI set adapter from Participants list
+        //------------------------------------------------------------------------------------------
+        participants_list.setAdapter(mArrayAdapter);
+        participants_list.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        //------------------------------------------------------------------------------------------
+
         //******************************************************************************************
         //              DATA FETCH ENDS HERE
         //******************************************************************************************
 
-        //******************************************************************************************
-        //              SELECT PARTICIPANT FROM LIST
-        //******************************************************************************************
-        final int[] count_selected = {0};
-        ArrayList<Integer> selected_indices = new ArrayList<Integer>(1000);
+        //------------------------------------------------------------------------------------------
 
-        // list on UI set adapter from Participants list
-        participants_list.setAdapter(mArrayAdapter);
-        participants_list.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        //******************************************************************************************
+        //              UPON SELECTING PARTICIPANT FROM LIST OF ALL
+        //******************************************************************************************
 
         // list for selected participants
+        //------------------------------------------------------------------------------------------
         final ArrayList<String> selected_participants_string = new ArrayList<>();
         final ArrayList<Participants> selected_participants_list = new ArrayList<>();
         final ArrayAdapter<String> mArrayAdapterSelected = new ArrayAdapter<String >
-                (MainActivity.this, android.R.layout.simple_list_item_1, selected_participants_string);
+                (MainActivity.this, android.R.layout.simple_list_item_1,
+                        selected_participants_string);
+        //------------------------------------------------------------------------------------------
 
         // on click listener to save the list of selected participants
+        //------------------------------------------------------------------------------------------
         participants_list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
@@ -156,15 +182,23 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, record, Toast.LENGTH_SHORT).show();
 
                 // preventing duplicate entries
-                if(selected_participants_string.contains(String.valueOf(participants_info_list.get(i).getName())) == false) {
+                if(selected_participants_string.contains(String.valueOf(participants_info_list.
+                        get(i).getName())) == false) {
                     selected_participants_list.add(participants_info_list.get(i));
-                    selected_participants_string.add(String.valueOf(participants_info_list.get(i).getName()));
+                    selected_participants_string.add(String.valueOf(participants_info_list.get(i).
+                            getName()));
                 }
                 selected_participants.setAdapter(mArrayAdapterSelected);
             }
         });
+        //------------------------------------------------------------------------------------------
 
-        // code to prevent scroll fault
+        //******************************************************************************************
+        //                 CODE TO PREVENT SCROLL FAULT
+        //******************************************************************************************
+
+        // scroll disabled on the all participants list touched
+        //------------------------------------------------------------------------------------------
         participants_list.setOnTouchListener(new ListView.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -186,7 +220,10 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+        //------------------------------------------------------------------------------------------
 
+        // scroll disabled on the selected participants list on touch
+        //------------------------------------------------------------------------------------------
         selected_participants.setOnTouchListener(new ListView.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -208,11 +245,14 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+        //------------------------------------------------------------------------------------------
 
         //******************************************************************************************
-        //              CLEAR LIST ON CLICKING ELEMENT FROM SELECTED LIST
+        //              SCROLL ISSUE RESOLUTION ENDS HERE
         //******************************************************************************************
 
+        // clearing the selected participants list on clicking any element of the list
+        //------------------------------------------------------------------------------------------
         selected_participants.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
@@ -221,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
                 mArrayAdapterSelected.notifyDataSetChanged();
             }
         });
+        //------------------------------------------------------------------------------------------
 
         //******************************************************************************************
         //              SELECTED PARTICIPANTS LIST OPERATION ENDS HERE
@@ -230,6 +271,8 @@ public class MainActivity extends AppCompatActivity {
         //              MULTIPLE CHOICE LISTENER
         //******************************************************************************************
 
+        // allowing multiple selections from the participants list
+        //------------------------------------------------------------------------------------------
         participants_list.setMultiChoiceModeListener(new AbsListView.MultiChoiceModeListener() {
             @Override
             public void onItemCheckedStateChanged(ActionMode actionMode, int i, long l, boolean b) {
@@ -257,69 +300,73 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+        //------------------------------------------------------------------------------------------
+
         //******************************************************************************************
-        //              MULTICHOICE LISTENER ENDS HERE
+        //              MULTIPLE CHOICE LISTENER ENDS HERE
         //******************************************************************************************
 
         //******************************************************************************************
         //              DATE AND TIME PICKERS
         //******************************************************************************************
-        // date picker on click
+
+        // date picker pop up on button click
+        //------------------------------------------------------------------------------------------
         select_date.setOnClickListener(new View.OnClickListener() {
-                                           @Override
-                                           public void onClick(View view) {
-                                               final Calendar c = Calendar.getInstance();
-                                               mDate[0] = c.get(Calendar.YEAR);
-                                               mDate[1] = c.get(Calendar.MONTH);
-                                               mDate[2] = c.get(Calendar.DAY_OF_MONTH);
-
-                                               DatePickerDialog datePickerDialog = new DatePickerDialog(MainActivity.this,
-                                                       new DatePickerDialog.OnDateSetListener() {
-
-                                                           @Override
-                                                           public void onDateSet(DatePicker view, int year,
-                                                                                 int monthOfYear, int dayOfMonth) {
-
-                                                               mDate[0] = dayOfMonth;
-                                                               mDate[1] = monthOfYear;
-                                                               mDate[2] = year;
-                                                           }
-                                                       }, mDate[0], mDate[1], mDate[2]);
-                                               datePickerDialog.show();
-                                           }
-                                       });
-
-        // time picker on click
-        //******************************************************************************************
-        //              TO TIME
-        //******************************************************************************************
-        select_to.setOnClickListener(new View.OnClickListener() {
-                                            @Override
+            @Override
             public void onClick(View view) {
-                                                final Calendar c = Calendar.getInstance();
-                                                mHourMinute_to[0] = c.get(Calendar.HOUR_OF_DAY);
-                                                mHourMinute_to[1] = c.get(Calendar.MINUTE);
+            final Calendar c = Calendar.getInstance();
+            mDate[0] = c.get(Calendar.YEAR);
+            mDate[1] = c.get(Calendar.MONTH);
+            mDate[2] = c.get(Calendar.DAY_OF_MONTH);
 
-                                                // Launch Time Picker Dialog
-                                                TimePickerDialog timePickerDialog = new TimePickerDialog(MainActivity.this,
-                                                        new TimePickerDialog.OnTimeSetListener() {
+            DatePickerDialog datePickerDialog = new DatePickerDialog(MainActivity.this,
+                new DatePickerDialog.OnDateSetListener() {
 
-                                                            @Override
-                                                            public void onTimeSet(TimePicker view, int hourOfDay,
-                                                                                  int minute) {
+                @Override
+                public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
 
-                                                                edit_to.setText(hourOfDay + ":" + minute);
-                                                                mHourMinute_to[0] = hourOfDay;
-                                                                mHourMinute_to[1] = minute;
-                                                            }
-                                                        }, mHourMinute_to[0], mHourMinute_to[1], false);
-                                                timePickerDialog.show();
-                                            }
+                    mDate[0] = dayOfMonth;
+                    mDate[1] = monthOfYear;
+                    mDate[2] = year;
+                }
+            }, mDate[0], mDate[1], mDate[2]);
+
+            datePickerDialog.show();
+            }
         });
+        //------------------------------------------------------------------------------------------
 
-        //******************************************************************************************
-        //              FROM TIME
-        //******************************************************************************************
+        // time picker pop up on button click - end time
+        //------------------------------------------------------------------------------------------
+        select_to.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final Calendar c = Calendar.getInstance();
+
+                mHourMinute_to[0] = c.get(Calendar.HOUR_OF_DAY);
+                mHourMinute_to[1] = c.get(Calendar.MINUTE);
+
+                // launch Time Picker Dialog
+                TimePickerDialog timePickerDialog = new TimePickerDialog(MainActivity.this,
+                    new TimePickerDialog.OnTimeSetListener() {
+
+                    @Override
+                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+
+                        edit_to.setText(hourOfDay + ":" + minute);
+                        mHourMinute_to[0] = hourOfDay;
+                        mHourMinute_to[1] = minute;
+                    }
+                }, mHourMinute_to[0], mHourMinute_to[1], false);
+
+                timePickerDialog.show();
+            }
+        });
+        //------------------------------------------------------------------------------------------
+
+        // time picker pop up on button click - end time
+        //------------------------------------------------------------------------------------------
         select_from.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -343,9 +390,13 @@ public class MainActivity extends AppCompatActivity {
                 timePickerDialog.show();
             }
         });
+        //------------------------------------------------------------------------------------------
+
         //******************************************************************************************
         //              DATE AND TIME PICKERS END HERE
         //******************************************************************************************
+
+        //------------------------------------------------------------------------------------------
 
         //******************************************************************************************
         //              CREATE READ UPDATE DELETE - BEGINS
@@ -378,21 +429,24 @@ public class MainActivity extends AppCompatActivity {
         //              SCHEDULE BUTTON - CREATE
         //******************************************************************************************
         btn_schedule.setOnClickListener(v -> {
-            // check if atleast 2 participants selected
+
+            // check if at least 2 participants selected
+            //--------------------------------------------------------------------------------------
             if(selected_participants_list.size() < 2) {
                 Toast.makeText(this, "Less than 2 participants in slot. Retry",
                         Toast.LENGTH_SHORT).show();
                 return;
             }
+
             // check if time slot is valid
+            //--------------------------------------------------------------------------------------
             if(mHourMinute_to[0] < mHourMinute_from[0] || mHourMinute_to[1] < mHourMinute_from[1]) {
                 Toast.makeText(this, "Invalid time slot!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             // if slot already scheduled || overlapping slot
-            //**************************************************************************************
-
+            //--------------------------------------------------------------------------------------
             // for each time slot check if the selected slot is overlapping anywhere
             ArrayList<String> selectedKeys = new ArrayList<>();
             // storing keys of selected participants
@@ -400,8 +454,8 @@ public class MainActivity extends AppCompatActivity {
                 selectedKeys.add(selected_participants_list.get(i).getMyKey());
             }
 
-            //**************************************************************************************
-            // for each participant check if slot matches
+            // checking for slot overlap
+            //--------------------------------------------------------------------------------------
             int flag = 0;
             for(int i = 0; i < participants_info_list.size(); ++i) {
                 // see if the elements from the selected list are not being checked of overlapping
@@ -432,45 +486,42 @@ public class MainActivity extends AppCompatActivity {
                 mins_to = Integer.valueOf(time_to[1]);
                 //----------------------------------------------------------------------------------
 
-                Log.d(TAG, "entry: " + String.valueOf(hour_from) + " " + String.valueOf(mins_from) + " " + String.valueOf(hour_to) + " " + String.valueOf(mins_to));
+                Log.d(TAG, "entry: " + String.valueOf(hour_from) + " " + String.valueOf(mins_from)
+                        + " " + String.valueOf(hour_to) + " " + String.valueOf(mins_to));
 
                 // logic for preoccupied time slots
                 if(mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
                     mHourMinute_to[0] <= hour_to && mHourMinute_to[1] <= hour_to) {
 
-                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT)
+                            .show();
                     return;
                 }
                 else if(mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
                         mHourMinute_to[0] >= hour_to && mHourMinute_to[1] >= hour_to) {
 
-                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT)
+                            .show();
                     return;
                 }
                 else if(mHourMinute_from[0] >= hour_from && mHourMinute_from[1] >= mins_from &&
                         mHourMinute_from[0] <= hour_to && mHourMinute_from[1] <= mins_to) {
 
-                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT)
+                            .show();
                     return;
                 }
             }
+            // finding overlap - ends here
+            //--------------------------------------------------------------------------------------
 
             // maybe also return where the overlapping slot resides
-            //**************************************************************************************
+            //--------------------------------------------------------------------------------------
 
-            //              end of finding overlap
-
-            //**************************************************************************************
-            // creating strings for new date and time
-            String date = String.valueOf(mDate[0]) + '-' + String.valueOf(mDate[1]) + '-' +
-                    String.valueOf(mDate[2]);
-            String time_from = String.valueOf(mHourMinute_from[0]) + '-'
-                    + String.valueOf(mHourMinute_from[1]);
-            String time_to = String.valueOf(mHourMinute_to[0]) + '-'
-                    + String.valueOf(mHourMinute_to[1]);
-
+            // hashmap to push to firebase
             HashMap<String, Object> hashMap = new HashMap<>();
 
+            // pushing the updated records
             for(int i = 0; i < selected_participants_list.size(); ++i) {
                 String key = selected_participants_list.get(i).getMyKey();
 
@@ -479,10 +530,13 @@ public class MainActivity extends AppCompatActivity {
                 hashMap.put("time_to", String.valueOf(mHourMinute_to[0])
                         + "-" + String.valueOf(mHourMinute_to[1]));
 
-                dao.update(selected_participants_list.get(i).getMyKey(), hashMap).addOnSuccessListener(success -> {
-                    Toast.makeText(this, "Participant Updated", Toast.LENGTH_SHORT).show();
+                dao.update(selected_participants_list.get(i).getMyKey(), hashMap).
+                        addOnSuccessListener(success -> {
+                    Toast.makeText(this, "Participant Updated", Toast.LENGTH_SHORT).
+                            show();
                 }).addOnFailureListener(error -> {
-                    Toast.makeText(this, "" + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "" + error.getMessage(), Toast.LENGTH_SHORT).
+                            show();
                 });
             }
             /*
@@ -505,7 +559,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "" + error.getMessage(), Toast.LENGTH_SHORT).show();
             });
              */
-            count_selected[0] = 0;
         });
         //******************************************************************************************
         //              CRUD ENDS HERE

@@ -83,15 +83,13 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/edit_from"
                 android:layout_marginRight="50sp"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
+                android:textAlignment="center" />
 
             <EditText
                 android:layout_width="100dp"
                 android:layout_height="wrap_content"
                 android:id="@+id/edit_to"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
+                android:textAlignment="center" />
         </LinearLayout>
 
         <Button
