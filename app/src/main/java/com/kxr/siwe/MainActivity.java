@@ -1,6 +1,7 @@
 package com.kxr.siwe;
 
 import static android.content.ContentValues.TAG;
+import static android.provider.AlarmClock.EXTRA_MESSAGE;
 
 import androidx.annotation.IntegerRes;
 import androidx.annotation.NonNull;
@@ -10,7 +11,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.Intent;
 import android.icu.util.Calendar;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -30,6 +33,11 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -51,12 +59,39 @@ public class MainActivity extends AppCompatActivity {
     private EditText edit_from;
     private ListView participants_list;
     private ListView selected_participants;
+    private FirebaseAuth mAuth;
+
+    private static final int SECOND_ACTIVITY_REQUEST_CODE = 0;
 
     @RequiresApi(api = Build.VERSION_CODES.N)
+
+    @Override
+    public void onStart() {
+
+        super.onStart();
+
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+
+        if(currentUser != null) {
+            Toast.makeText(MainActivity.this, "Log-in successful!",
+                    Toast.LENGTH_SHORT).show();
+        }
+        else {
+            Intent intent = new Intent(MainActivity.this, Authentication.class);
+            startActivity(intent);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //------------------------------------------------------------------------------------------
+        //                                      AUTHENTICATION
+        //------------------------------------------------------------------------------------------
+        mAuth = FirebaseAuth.getInstance();
+        //------------------------------------------------------------------------------------------
 
         //------------------------------------------------------------------------------------------
         // stores the current date & time from the pickers
@@ -101,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
         //------------------------------------------------------------------------------------------
         final ArrayList<Participants> participants_info_list = new ArrayList<>();
         final ArrayList<String> participants_info_list_String = new ArrayList<>();
-        final ArrayAdapter<String> mArrayAdapter = new ArrayAdapter<String >
+        final ArrayAdapter<String> mArrayAdapter = new ArrayAdapter<String>
                 (MainActivity.this, android.R.layout.simple_list_item_1,
                         participants_info_list_String);
         //------------------------------------------------------------------------------------------
@@ -115,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
                 //----------------------------------------------------------------------------------
                 participants_info_list_String.clear();
                 int i = 0;
-                for(DataSnapshot dsnap : snapshot.getChildren()) {
+                for (DataSnapshot dsnap : snapshot.getChildren()) {
 
                     Participants participants = new Participants(dsnap.getKey(),
                             dsnap.child("name").getValue().toString(),
@@ -132,20 +167,20 @@ public class MainActivity extends AppCompatActivity {
                     ++i;
                 }
                 // less than 2 participants selected
-                if(participants_info_list.size() < 2) {
+                if (participants_info_list.size() < 2) {
                     int m_size = participants_info_list.size();
                     Toast.makeText(MainActivity.this, getString(R.string.less_than_2_in_db),
                             Toast.LENGTH_SHORT).show();
                     btn_schedule.setEnabled(false);
-                }
-                else {
+                } else {
                     btn_schedule.setEnabled(true);
                 }
                 //----------------------------------------------------------------------------------
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
         });
 
         // list on UI set adapter from Participants list
@@ -168,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
         //------------------------------------------------------------------------------------------
         final ArrayList<String> selected_participants_string = new ArrayList<>();
         final ArrayList<Participants> selected_participants_list = new ArrayList<>();
-        final ArrayAdapter<String> mArrayAdapterSelected = new ArrayAdapter<String >
+        final ArrayAdapter<String> mArrayAdapterSelected = new ArrayAdapter<String>
                 (MainActivity.this, android.R.layout.simple_list_item_1,
                         selected_participants_string);
         //------------------------------------------------------------------------------------------
@@ -182,7 +217,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, record, Toast.LENGTH_SHORT).show();
 
                 // preventing duplicate entries
-                if(selected_participants_string.contains(String.valueOf(participants_info_list.
+                if (selected_participants_string.contains(String.valueOf(participants_info_list.
                         get(i).getName())) == false) {
                     selected_participants_list.add(participants_info_list.get(i));
                     selected_participants_string.add(String.valueOf(participants_info_list.get(i).
@@ -315,24 +350,24 @@ public class MainActivity extends AppCompatActivity {
         select_date.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-            final Calendar c = Calendar.getInstance();
-            mDate[0] = c.get(Calendar.YEAR);
-            mDate[1] = c.get(Calendar.MONTH);
-            mDate[2] = c.get(Calendar.DAY_OF_MONTH);
+                final Calendar c = Calendar.getInstance();
+                mDate[0] = c.get(Calendar.YEAR);
+                mDate[1] = c.get(Calendar.MONTH);
+                mDate[2] = c.get(Calendar.DAY_OF_MONTH);
 
-            DatePickerDialog datePickerDialog = new DatePickerDialog(MainActivity.this,
-                new DatePickerDialog.OnDateSetListener() {
+                DatePickerDialog datePickerDialog = new DatePickerDialog(MainActivity.this,
+                        new DatePickerDialog.OnDateSetListener() {
 
-                @Override
-                public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
+                            @Override
+                            public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
 
-                    mDate[0] = dayOfMonth;
-                    mDate[1] = monthOfYear;
-                    mDate[2] = year;
-                }
-            }, mDate[0], mDate[1], mDate[2]);
+                                mDate[0] = dayOfMonth;
+                                mDate[1] = monthOfYear;
+                                mDate[2] = year;
+                            }
+                        }, mDate[0], mDate[1], mDate[2]);
 
-            datePickerDialog.show();
+                datePickerDialog.show();
             }
         });
         //------------------------------------------------------------------------------------------
@@ -349,16 +384,16 @@ public class MainActivity extends AppCompatActivity {
 
                 // launch Time Picker Dialog
                 TimePickerDialog timePickerDialog = new TimePickerDialog(MainActivity.this,
-                    new TimePickerDialog.OnTimeSetListener() {
+                        new TimePickerDialog.OnTimeSetListener() {
 
-                    @Override
-                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                            @Override
+                            public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
 
-                        edit_to.setText(hourOfDay + ":" + minute);
-                        mHourMinute_to[0] = hourOfDay;
-                        mHourMinute_to[1] = minute;
-                    }
-                }, mHourMinute_to[0], mHourMinute_to[1], false);
+                                edit_to.setText(hourOfDay + ":" + minute);
+                                mHourMinute_to[0] = hourOfDay;
+                                mHourMinute_to[1] = minute;
+                            }
+                        }, mHourMinute_to[0], mHourMinute_to[1], false);
 
                 timePickerDialog.show();
             }
@@ -432,7 +467,7 @@ public class MainActivity extends AppCompatActivity {
 
             // check if at least 2 participants selected
             //--------------------------------------------------------------------------------------
-            if(selected_participants_list.size() < 2) {
+            if (selected_participants_list.size() < 2) {
                 Toast.makeText(this, "Less than 2 participants in slot. Retry",
                         Toast.LENGTH_SHORT).show();
                 return;
@@ -440,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
 
             // check if time slot is valid
             //--------------------------------------------------------------------------------------
-            if(mHourMinute_to[0] < mHourMinute_from[0] || mHourMinute_to[1] < mHourMinute_from[1]) {
+            if (mHourMinute_to[0] < mHourMinute_from[0] || mHourMinute_to[1] < mHourMinute_from[1]) {
                 Toast.makeText(this, "Invalid time slot!", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -449,27 +484,30 @@ public class MainActivity extends AppCompatActivity {
             //--------------------------------------------------------------------------------------
             // for each time slot check if the selected slot is overlapping anywhere
             ArrayList<String> selectedKeys = new ArrayList<>();
+
             // storing keys of selected participants
-            for(int i = 0; i < selected_participants_list.size(); ++i) {
+            for (int i = 0; i < selected_participants_list.size(); ++i) {
                 selectedKeys.add(selected_participants_list.get(i).getMyKey());
             }
 
             // checking for slot overlap
             //--------------------------------------------------------------------------------------
             int flag = 0;
-            for(int i = 0; i < participants_info_list.size(); ++i) {
+            for (int i = 0; i < participants_info_list.size(); ++i) {
                 // see if the elements from the selected list are not being checked of overlapping
                 // because they are being rescheduled
                 flag = 0;
-                for(int j = 0; j < selectedKeys.size(); ++j) {
-                    if(selectedKeys.get(j) == participants_info_list.get(i).getMyKey()) {
+                for (int j = 0; j < selectedKeys.size(); ++j) {
+                    if (selectedKeys.get(j) == participants_info_list.get(i).getMyKey()) {
                         flag = 1;
                         break;
                     }
                 }
 
                 // if key matches, continue with the next iteration
-                if(flag == 1) { continue; }
+                if (flag == 1) {
+                    continue;
+                }
 
                 // hours and minutes && from and to of each participant
                 //----------------------------------------------------------------------------------
@@ -490,22 +528,20 @@ public class MainActivity extends AppCompatActivity {
                         + " " + String.valueOf(hour_to) + " " + String.valueOf(mins_to));
 
                 // logic for preoccupied time slots
-                if(mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
-                    mHourMinute_to[0] <= hour_to && mHourMinute_to[1] <= hour_to) {
+                if (mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
+                        mHourMinute_to[0] <= hour_to && mHourMinute_to[1] <= hour_to) {
 
                     Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT)
                             .show();
                     return;
-                }
-                else if(mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
+                } else if (mHourMinute_from[0] <= hour_from && mHourMinute_from[1] <= mins_from &&
                         mHourMinute_to[0] >= hour_to && mHourMinute_to[1] >= hour_to) {
 
                     Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT)
                             .show();
                     return;
-                }
-                else if(mHourMinute_from[0] >= hour_from && mHourMinute_from[1] >= mins_from &&
-                        mHourMinute_from[0] <= hour_to && mHourMinute_from[1] <= mins_to) {
+                } else if (mHourMinute_from[0] >= hour_from && mHourMinute_from[1] >= mins_from &&
+                        mHourMinute_from[0] < hour_to && mHourMinute_from[1] < mins_to) {
 
                     Toast.makeText(this, "Overlap in time schedule.", Toast.LENGTH_SHORT)
                             .show();
@@ -522,7 +558,7 @@ public class MainActivity extends AppCompatActivity {
             HashMap<String, Object> hashMap = new HashMap<>();
 
             // pushing the updated records
-            for(int i = 0; i < selected_participants_list.size(); ++i) {
+            for (int i = 0; i < selected_participants_list.size(); ++i) {
                 String key = selected_participants_list.get(i).getMyKey();
 
                 hashMap.put("time_from", String.valueOf(mHourMinute_from[0])
@@ -532,13 +568,18 @@ public class MainActivity extends AppCompatActivity {
 
                 dao.update(selected_participants_list.get(i).getMyKey(), hashMap).
                         addOnSuccessListener(success -> {
-                    Toast.makeText(this, "Participant Updated", Toast.LENGTH_SHORT).
-                            show();
-                }).addOnFailureListener(error -> {
+                            Toast.makeText(this, "Participant Updated", Toast.LENGTH_SHORT).
+                                    show();
+                        }).addOnFailureListener(error -> {
                     Toast.makeText(this, "" + error.getMessage(), Toast.LENGTH_SHORT).
                             show();
                 });
             }
+
+            // notify the adapter and clear the lists of selected participants
+            selected_participants_list.clear();
+            selected_participants_string.clear();
+            mArrayAdapterSelected.notifyDataSetChanged();
             /*
             hashMap.put("name", edit_name.getText().toString());
             hashMap.put("position", picker_date.getText().toString());
@@ -563,5 +604,60 @@ public class MainActivity extends AppCompatActivity {
         //******************************************************************************************
         //              CRUD ENDS HERE
         //******************************************************************************************
+
+        //******************************************************************************************
+        //              EMAIL VIA INTENT
+        //******************************************************************************************
+
+        /*
+            Intent emailIntent = new Intent(Intent.ACTION_SEND);
+            emailIntent.setData(Uri.parse("mailto:"));
+            emailIntent.setType("text/plain");
+
+            emailIntent.putExtra(Intent.EXTRA_EMAIL, selected_participants_list.get(0).getEmail());
+            emailIntent.putExtra(Intent.EXTRA_SUBJECT, );
+            emailIntent.putExtra(Intent.EXTRA_TEXT, "Email message goes here");
+
+            try {
+                startActivity(Intent.createChooser(emailIntent, "Send mail..."));
+                finish();
+                Log.i("Finished sending email...", "");
+            } catch (android.content.ActivityNotFoundException ex) {
+                Toast.makeText(MainActivity.this,
+                "There is no email client installed.", Toast.LENGTH_SHORT).show();
+            }
+
+         */
+
+        //******************************************************************************************
+        //              EMAIL FUNCTIONALITY ENDS HERE
+        //******************************************************************************************
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
